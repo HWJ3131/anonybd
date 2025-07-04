@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>익명 게시판</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .firebase-status {
+            text-align: center;
+            padding: 10px;
+            margin-bottom: 20px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .firebase-status.connected {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .firebase-status.disconnected {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .firebase-status.connecting {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        .write-section {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e0e0e0;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 600;
+        }
+
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        input[type="text"]:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .submit-btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            position: relative;
+        }
+
+        .submit-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .submit-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #ffffff;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .posts-section {
+            margin-top: 30px;
+        }
+
+        .post {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e0e0e0;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .post-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .post-author {
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .post-time {
+            color: #888;
+            font-size: 14px;
+        }
+
+        .post-content {
+            color: #444;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+
+        .post-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .comments-section {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #f0f0f0;
+        }
+
+        .comment {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 10px;
+            margin-left: 20px;
+            position: relative;
+        }
+
+        .comment::before {
+            content: '';
+            position: absolute;
+            left: -10px;
+            top: 15px;
+            width: 0;
+            height: 0;
+            border-top: 8px solid transparent;
+            border-bottom: 8px solid transparent;
+            border-right: 10px solid #f8f9fa;
+        }
+
+        .reply {
+            margin-left: 40px;
+            background: #e9ecef;
+        }
+
+        .reply::before {
+            border-right-color: #e9ecef;
+        }
+
+        .comment-form {
+            margin-top: 15px;
+            display: none;
+        }
+
+        .comment-form.active {
+            display: block;
+        }
+
+        .comment-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            resize: vertical;
+            min-height: 60px;
+            margin-bottom: 10px;
+        }
+
+        .comment-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            cursor: pointer;
+            margin-right: 10px;
+            transition: background 0.3s ease;
+        }
+
+        .comment-btn:hover:not(:disabled) {
+            background: #5a6fd8;
+        }
+
+        .comment-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .reply-btn {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 6px 15px;
+            border-radius: 15px;
+            font-size: 12px;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: background 0.3s ease;
+        }
+
+        .reply-btn:hover {
+            background: #5a6268;
+        }
+
+        .anonymous-badge {
+            display: inline-block;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .post-stats {
+            display: flex;
+            gap: 15px;
+            margin-top: 10px;
+            color: #888;
+            font-size: 14px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 50px;
+            color: #888;
+        }
+
+        .empty-state i {
+            font-size: 48px;
+            margin-bottom: 20px;
+            color: #ddd;
+        }
+
+        .setup-notice {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            color: #856404;
+        }
+
+        .setup-notice h3 {
+            margin-bottom: 10px;
+            color: #856404;
+        }
+
+        .setup-notice code {
+            background: #f8f9fa;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+                margin: 10px;
+            }
+            
+            .comment {
+                margin-left: 10px;
+            }
+            
+            .reply {
+                margin-left: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>💬 익명 게시판</h1>
+        
+        <div id="firebaseStatus" class="firebase-status connecting">
+            🔄 Firebase 연결 중...
+        </div>
+
+        <div id="setupNotice" class="setup-notice">
+            <h3>🚀 Firebase 설정이 필요합니다</h3>
+            <p>아래 단계를 따라 Firebase를 설정해주세요:</p>
+            <ol>
+                <li>Firebase 콘솔에서 새 프로젝트 생성</li>
+                <li>Firestore Database 활성화</li>
+                <li>웹 앱 등록 후 config 정보 복사</li>
+                <li>아래 <code>firebaseConfig</code> 객체에 정보 입력</li>
+            </ol>
+        </div>
+        
+        <div class="write-section">
+            <div class="form-group">
+                <label for="postTitle">제목</label>
+                <input type="text" id="postTitle" placeholder="궁금한 것이나 의견을 간단히 적어보세요">
+            </div>
+            
+            <div class="form-group">
+                <label for="postContent">내용</label>
+                <textarea id="postContent" placeholder="자세한 내용을 적어보세요 (선택사항)"></textarea>
+            </div>
+            
+            <button class="submit-btn" onclick="addPost()" id="submitBtn">익명으로 게시하기</button>
+        </div>
+
+        <div class="posts-section">
+            <div id="postsList"></div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+    <script>
+        // Firebase 설정 - 여기에 본인의 Firebase 프로젝트 정보를 입력하세요
+        const firebaseConfig = {
+            apiKey: "AIzaSyDgUiA-K6p2UvSmsb1FWfO1_P6p6udATbU",
+            authDomain: "anonymous-bd.firebaseapp.com",
+            projectId: "anonymous-bd",
+            storageBucket: "anonymous-bd.firebasestorage.app",
+            messagingSenderId: "896903346543",
+            appId: "1:896903346543:web:fc7eb15872f5c1d517109a"
+        };
+
+        let db;
+        let isFirebaseConnected = false;
+
+        // Firebase 초기화
+        function initFirebase() {
+            try {
+                if (firebaseConfig.apiKey === "YOUR_API_KEY") {
+                    updateFirebaseStatus('setup', '⚠️ Firebase 설정이 필요합니다');
+                    return;
+                }
+
+                firebase.initializeApp(firebaseConfig);
+                db = firebase.firestore();
+                
+                // 연결 테스트
+                db.enableNetwork().then(() => {
+                    isFirebaseConnected = true;
+                    updateFirebaseStatus('connected', '✅ Firebase 연결됨 - 실시간 동기화 활성');
+                    document.getElementById('setupNotice').style.display = 'none';
+                    loadPosts();
+                }).catch((error) => {
+                    console.error('Firebase 연결 오류:', error);
+                    updateFirebaseStatus('disconnected', '❌ Firebase 연결 실패');
+                });
+            } catch (error) {
+                console.error('Firebase 초기화 오류:', error);
+                updateFirebaseStatus('disconnected', '❌ Firebase 초기화 실패');
+            }
+        }
+
+        function updateFirebaseStatus(status, message) {
+            const statusEl = document.getElementById('firebaseStatus');
+            statusEl.className = `firebase-status ${status}`;
+            statusEl.textContent = message;
+        }
+
+        function generateAnonymousName() {
+            const adjectives = ['신중한', '열정적인', '차분한', '활발한', '사려깊은', '창의적인', '성실한', '밝은', '따뜻한', '지혜로운'];
+            const nouns = ['직장인', '동료', '팀원', '사람', '구성원', '멤버', '동지', '파트너', '협력자', '일꾼'];
+            
+            const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
+            const noun = nouns[Math.floor(Math.random() * nouns.length)];
+            
+            return `${adj} ${noun}`;
+        }
+
+        async function addPost() {
+            if (!isFirebaseConnected) {
+                alert('Firebase 연결이 필요합니다.');
+                return;
+            }
+
+            const title = document.getElementById('postTitle').value.trim();
+            const content = document.getElementById('postContent').value.trim();
+            
+            if (!title) {
+                alert('제목을 입력해주세요.');
+                return;
+            }
+            
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="loading"></span>게시 중...';
+            
+            try {
+                const post = {
+                    title: title,
+                    content: content,
+                    author: generateAnonymousName(),
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                    createdAt: new Date().toISOString()
+                };
+                
+                await db.collection('posts').add(post);
+                
+                document.getElementById('postTitle').value = '';
+                document.getElementById('postContent').value = '';
+                
+            } catch (error) {
+                console.error('게시글 추가 오류:', error);
+                alert('게시글 추가 중 오류가 발생했습니다.');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '익명으로 게시하기';
+            }
+        }
+
+        async function addComment(postId, commentText, parentCommentId = null) {
+            if (!isFirebaseConnected || !commentText.trim()) return;
+            
+            try {
+                const comment = {
+                    postId: postId,
+                    text: commentText,
+                    author: generateAnonymousName(),
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                    createdAt: new Date().toISOString(),
+                    parentCommentId: parentCommentId
+                };
+                
+                await db.collection('comments').add(comment);
+                
+            } catch (error) {
+                console.error('댓글 추가 오류:', error);
+                alert('댓글 추가 중 오류가 발생했습니다.');
+            }
+        }
+
+        function loadPosts() {
+            if (!isFirebaseConnected) return;
+            
+            // 게시글 실시간 리스닝
+            db.collection('posts').orderBy('timestamp', 'desc').onSnapshot((snapshot) => {
+                const posts = [];
+                snapshot.forEach((doc) => {
+                    posts.push({
+                        id: doc.id,
+                        ...doc.data()
+                    });
+                });
+                
+                // 댓글 로드
+                loadCommentsForPosts(posts);
+            });
+        }
+
+        function loadCommentsForPosts(posts) {
+            if (!isFirebaseConnected || posts.length === 0) {
+                renderPosts(posts, []);
+                return;
+            }
+            
+            // 댓글 실시간 리스닝
+            db.collection('comments').orderBy('timestamp', 'asc').onSnapshot((snapshot) => {
+                const comments = [];
+                snapshot.forEach((doc) => {
+                    comments.push({
+                        id: doc.id,
+                        ...doc.data()
+                    });
+                });
+                
+                renderPosts(posts, comments);
+            });
+        }
+
+        function toggleCommentForm(postId) {
+            const form = document.getElementById(`commentForm-${postId}`);
+            form.classList.toggle('active');
+            if (form.classList.contains('active')) {
+                form.querySelector('textarea').focus();
+            }
+        }
+
+        function toggleReplyForm(postId, commentId) {
+            const form = document.getElementById(`replyForm-${postId}-${commentId}`);
+            form.classList.toggle('active');
+            if (form.classList.contains('active')) {
+                form.querySelector('textarea').focus();
+            }
+        }
+
+        function organizeComments(comments, postId) {
+            const postComments = comments.filter(c => c.postId === postId);
+            const topLevel = postComments.filter(c => !c.parentCommentId);
+            
+            return topLevel.map(comment => ({
+                ...comment,
+                replies: postComments.filter(c => c.parentCommentId === comment.id)
+            }));
+        }
+
+        function renderComments(comments, postId, level = 0) {
+            return comments.map(comment => `
+                <div class="comment ${level > 0 ? 'reply' : ''}">
+                    <div class="post-header">
+                        <span class="anonymous-badge">${comment.author}</span>
+                        <span class="post-time">${formatDate(comment.createdAt)}</span>
+                    </div>
+                    <div class="post-content">${comment.text}</div>
+                    <button class="reply-btn" onclick="toggleReplyForm('${postId}', '${comment.id}')">답글</button>
+                    
+                    <div class="comment-form" id="replyForm-${postId}-${comment.id}">
+                        <textarea class="comment-input" placeholder="답글을 입력하세요..."></textarea>
+                        <button class="comment-btn" onclick="addCommentFromForm('${postId}', this, '${comment.id}')">답글 작성</button>
+                        <button class="comment-btn" onclick="toggleReplyForm('${postId}', '${comment.id}')" style="background: #6c757d;">취소</button>
+                    </div>
+                    
+                    ${comment.replies && comment.replies.length > 0 ? renderComments(comment.replies, postId, level + 1) : ''}
+                </div>
+            `).join('');
+        }
+
+        async function addCommentFromForm(postId, button, parentCommentId = null) {
+            const form = button.closest('.comment-form');
+            const textarea = form.querySelector('textarea');
+            const commentText = textarea.value.trim();
+            
+            if (!commentText) return;
+            
+            button.disabled = true;
+            button.innerHTML = '<span class="loading"></span>작성 중...';
+            
+            try {
+                await addComment(postId, commentText, parentCommentId);
+                textarea.value = '';
+                form.classList.remove('active');
+            } finally {
+                button.disabled = false;
+                button.innerHTML = parentCommentId ? '답글 작성' : '댓글 작성';
+            }
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return '';
+            const date = new Date(dateString);
+            return date.toLocaleString('ko-KR');
+        }
+
+        function renderPosts(posts, comments) {
+            const postsList = document.getElementById('postsList');
+            
+            if (posts.length === 0) {
+                postsList.innerHTML = `
+                    <div class="empty-state">
+                        <div style="font-size: 48px; margin-bottom: 20px;">💭</div>
+                        <h3>아직 게시글이 없습니다</h3>
+                        <p>첫 번째 게시글을 작성해보세요!</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            postsList.innerHTML = posts.map(post => {
+                const postComments = organizeComments(comments, post.id);
+                const totalComments = comments.filter(c => c.postId === post.id).length;
+                
+                return `
+                    <div class="post">
+                        <div class="post-header">
+                            <span class="anonymous-badge">${post.author}</span>
+                            <span class="post-time">${formatDate(post.createdAt)}</span>
+                        </div>
+                        <div class="post-title">${post.title}</div>
+                        ${post.content ? `<div class="post-content">${post.content}</div>` : ''}
+                        <div class="post-stats">
+                            <span>💬 댓글 ${totalComments}개</span>
+                        </div>
+                        
+                        <button class="comment-btn" onclick="toggleCommentForm('${post.id}')">댓글 작성</button>
+                        
+                        <div class="comment-form" id="commentForm-${post.id}">
+                            <textarea class="comment-input" placeholder="댓글을 입력하세요..."></textarea>
+                            <button class="comment-btn" onclick="addCommentFromForm('${post.id}', this)">댓글 작성</button>
+                            <button class="comment-btn" onclick="toggleCommentForm('${post.id}')" style="background: #6c757d;">취소</button>
+                        </div>
+                        
+                        ${postComments.length > 0 ? `
+                            <div class="comments-section">
+                                ${renderComments(postComments, post.id)}
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 엔터 키로 댓글 작성
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && e.ctrlKey) {
+                const textarea = e.target;
+                if (textarea.classList.contains('comment-input')) {
+                    const button = textarea.nextElementSibling;
+                    if (button && button.classList.contains('comment-btn')) {
+                        button.click();
+                    }
+                }
+            }
+        });
+
+        // 초기화
+        initFirebase();
+    </script>
+</body>
+</html>
