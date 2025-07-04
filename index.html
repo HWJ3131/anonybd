@@ -397,6 +397,8 @@
 
     <script>
         // Firebase 설정 - 여기에 본인의 Firebase 프로젝트 정보를 입력하세요
+        import { initializeApp } from "firebase/app";
+        
         const firebaseConfig = {
             apiKey: "AIzaSyDgUiA-K6p2UvSmsb1FWfO1_P6p6udATbU",
             authDomain: "anonymous-bd.firebaseapp.com",
@@ -405,6 +407,8 @@
             messagingSenderId: "896903346543",
             appId: "1:896903346543:web:fc7eb15872f5c1d517109a"
         };
+
+        const app = initializeApp(firebaseConfig);
 
         let db;
         let isFirebaseConnected = false;
